@@ -4,7 +4,8 @@ import torch.optim as optim
 from torch.utils.data import DataLoader
 import torch.nn as nn 
 import torch 
-from skimage.transform import resize 
+from skimage.transform import resize
+from scipy.misc import imresize 
 
 from tensorboardX import SummaryWriter
 
@@ -56,6 +57,7 @@ def train_model(model, criterion, optimizer, scheduler, num_epochs=25):
             for inputs, labels, _ in data_loaders[phase]:
                 #print(inputs.size())
                 inputs = inputs.to(device)
+                inputs = inputs.type(torch.cuda.FloatTensor)
                 labels = labels.to(device)
 
                 # zero the parameter gradients 
@@ -145,9 +147,10 @@ if __name__ == "__main__":
     writer = SummaryWriter()
 
     # lambda function to resize array
-    set_size = lambda x : resize(x, (64,64), preserve_range=True)
+    #set_size = lambda x : resize(x, (64,64), preserve_range=True)
+    #set_size = lambda x : imresize(x, (64,64))
     data_transforms = {
-        'train': transforms.Compose([transforms.Lambda(set_size),
+        'train': transforms.Compose([
                                      transforms.ToTensor(),
                                      transforms.Normalize(cur_means, cur_stds),
                                     ]),
@@ -159,8 +162,8 @@ if __name__ == "__main__":
                                   ])
     }
 
-    data_dir = '/Users/senecal/Repos/hyperspectral/data/Tomato2'
-    #data_dir = "/mnt/data1/jsenec/data/SentinelSplit"
+    #data_dir = '/Users/senecal/Repos/hyperspectral/data/Tomato2'
+    data_dir = 'D:\Repos\intel_spectrumnet\data\Tomato2'
 
     image_datasets = {x: DatasetFolder(os.path.join(data_dir, x), ['.tiff'], num_bands=args.num_bands, transform=data_transforms[x]) for x in ['train']} #, 'val', 'test']}
     data_loaders = {x: DataLoader(image_datasets[x], batch_size=8, shuffle=True, num_workers=4) for x in ['train']} #, 'val', 'test']}
@@ -168,7 +171,7 @@ if __name__ == "__main__":
     dataset_sizes = {x: len(image_datasets[x]) for x in ['train']} #, 'val', 'test']}
     class_names = image_datasets['train'].classes
 
-    device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     # get network and savepath 
     net, filename = getNetwork(len(args.num_bands))

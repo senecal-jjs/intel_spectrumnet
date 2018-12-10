@@ -4,6 +4,7 @@ from PIL import Image
 from skimage import io
 import rasterio 
 import numpy as np
+from skimage.transform import resize
 
 
 def has_file_allowed_extension(filename, extensions):
@@ -96,6 +97,7 @@ class DatasetFolder(data.Dataset):
                 sample.append(src.read(b))
 
         sample = np.stack(sample, axis=2).astype("float32")
+        sample = resize(sample, (64,64), preserve_range=True, anti_aliasing=True)
 
         if self.transform is not None:
             sample = self.transform(sample)
