@@ -2,6 +2,7 @@ import numpy as np
 import os
 import sys
 from PIL import Image
+import gdal 
 
 # Wavelength specific reflectance for the Spectralon calibration panel
 # Maps wavelength (nm) to reflectance value
@@ -130,3 +131,26 @@ def get_plottable_rgb(image):
 
     rgb_img = Image.fromarray(rgbArray)
     return rgb_img
+
+def convert_bil_to_array(raw_bil_file):
+    """
+    Read in the raw .bil file and create a cube of the image
+    """
+
+    gdal.GetDriverByName('EHdr').Register()
+    raw_image = gdal.Open(raw_bil_file)
+
+    # Read in each spectral band, (there are 240 bands)
+    image = np.dstack([read_bil_file(raw_image, ii) for ii in range(1, 291)]).astype('float32')
+
+    return image
+
+
+def read_bil_file(img, rasterband):
+    """
+    Read in .bil files as np array for a given spectral band
+    """
+
+    band = img.GetRasterBand(rasterband)
+    data = band.ReadAsArray()
+    return data

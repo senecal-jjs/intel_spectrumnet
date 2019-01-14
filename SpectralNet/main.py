@@ -19,6 +19,19 @@ import copy
 from spectralnet import SpectralNet
 from GeoTiffDataset import DatasetFolder
 
+def get_pretrained_network(file, num_bands, num_output_classes, version=1.0):
+    net = SpectralNet(num_bands=num_bands, version=version)
+    net.load_state_dict(torch.load(file, map_location='cuda:0'))
+
+    # change the last conv2d layer
+    net.classifier._modules["1"] = nn.Conv2d(512, num_output_classes, kernel_size=1)
+    # change the internal num_classes variable rather than redefining the forward pass
+    net.num_classes = num_output_classes
+
+    tm = time.strftime("%Y-%m-%d_%H:%M:%S", time.gmtime())
+    file_name = 'SpectralNet-'+str(num_bands)+tm 
+
+    return net, file_name
 
 # Return network and filename 
 def getNetwork(num_bands):
@@ -136,19 +149,18 @@ if __name__ == "__main__":
 
     cur_means = []
     cur_stds = []
-    for b in args.num_bands:
+    for i in range(len(args.num_bands)):
         # rasterio indexing starts at 1 and that is what the flag corresponds to 
-        cur_means.append(means[int(b)-1])
-        cur_stds.append(stds[int(b)-1])
+        cur_means.append(means[i])
+        cur_stds.append(stds[i])
+        # cur_means.append(means[int(b)-1])
+        # cur_stds.append(stds[int(b)-1])
     print(args.num_bands)
     print(cur_means)
     print(cur_stds)
 
     writer = SummaryWriter()
 
-    # lambda function to resize array
-    #set_size = lambda x : resize(x, (64,64), preserve_range=True)
-    #set_size = lambda x : imresize(x, (64,64))
     data_transforms = {
         'train': transforms.Compose([
                                      transforms.ToTensor(),
@@ -163,10 +175,11 @@ if __name__ == "__main__":
     }
 
     #data_dir = '/Users/senecal/Repos/hyperspectral/data/Tomato2'
-    data_dir = 'D:\Repos\intel_spectrumnet\data\Tomato2'
+    data_dir = '/media/jsen/SanDisk/Repos/intel_spectrumnet/data/Tomato2'
+
 
     image_datasets = {x: DatasetFolder(os.path.join(data_dir, x), ['.tiff'], num_bands=args.num_bands, transform=data_transforms[x]) for x in ['train']} #, 'val', 'test']}
-    data_loaders = {x: DataLoader(image_datasets[x], batch_size=8, shuffle=True, num_workers=4) for x in ['train']} #, 'val', 'test']}
+    data_loaders = {x: DataLoader(image_datasets[x], batch_size=16, shuffle=True, num_workers=8) for x in ['train']} #, 'val', 'test']}
 
     dataset_sizes = {x: len(image_datasets[x]) for x in ['train']} #, 'val', 'test']}
     class_names = image_datasets['train'].classes
@@ -174,12 +187,21 @@ if __name__ == "__main__":
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     # get network and savepath 
-    net, filename = getNetwork(len(args.num_bands))
+    if(args.resume):
+        print("Resuming from checkpoint...")
+        #fname = '/media/jsen/SanDisk/Repos/intel_spectrumnet/data/SpectralNet-102019-01-11_13:33:28.pt'
+        fname = '/media/jsen/SanDisk/Repos/intel_spectrumnet/data/SpectralNet_DWS.pt'
+        net, filename = get_pretrained_network(file=fname,
+                                               num_bands=len(args.num_bands),
+                                               num_output_classes=2,
+                                               version=1.1)
+    else:
+        net, filename = getNetwork(len(args.num_bands))
     net.to(device)
 
     # set up loss criterion and optimizer 
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9, weight_decay=5e-4, nesterov=True)
+    optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9, nesterov=True)
     #optimizer = optim.RMSprop(net.parameters(), lr=0.001)
 
     # lr scheduler
