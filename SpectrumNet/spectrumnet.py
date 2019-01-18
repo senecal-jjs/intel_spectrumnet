@@ -37,34 +37,22 @@ class Smash(nn.Module):
             nn.ReLU(inplace=False),
         )
 
-        self.squeeze1 = nn.Sequential(
-            nn.Conv2d(inplanes, squeeze_planes, kernel_size=3, padding=1),
-            nn.BatchNorm2d(squeeze_planes),
-            nn.ReLU(inplace=False),
-        )
-
-        self.expand1 = nn.Sequential(
-            nn.Conv2d(squeeze_planes, expand_planes, kernel_size=3, padding=1),
-            nn.BatchNorm2d(expand_planes),
-            nn.ReLU(inplace=False),
-        )
-
     def forward(self, x):
         x = self.squeeze(x)
         return self.expand(x)
 
 
-class SpectralNet(nn.Module):
+class SpectrumNet(nn.Module):
     def __init__(self, version=1.0, num_classes=10, num_bands=13):
-        super(SpectralNet, self).__init__()
+        super(SpectrumNet, self).__init__()
         if version not in [1.0, 1.1]:
-            raise ValueError("Unsupported SpectralNet version {version}" "1.0 or 1.1 expected".format(version=version))
+            raise ValueError("Unsupported SpectrumNet version {version}" "1.0 or 1.1 expected".format(version=version))
         
         self.num_classes = num_classes
         if version == 1.0:
             self.features = nn.Sequential(
                 nn.Conv2d(num_bands, 96, kernel_size=2, stride=2), # modified from original architecture
-                nn.ReLU(inplace=True),
+                nn.ReLU(inplace=False),
                 # skipped the initial maxpool due to my smaller image size
                 Fire(96, 32, 64, 64),
                 Fire(128, 32, 64, 64),

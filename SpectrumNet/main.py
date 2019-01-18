@@ -16,11 +16,11 @@ import argparse
 import datetime
 import copy 
 
-from spectralnet import SpectralNet
+from spectrumnet import SpectrumNet
 from GeoTiffDataset import DatasetFolder
 
 def get_pretrained_network(file, num_bands, num_output_classes, version=1.0):
-    net = SpectralNet(num_bands=num_bands, version=version)
+    net = SpectrumNet(num_bands=num_bands, version=version)
     net.load_state_dict(torch.load(file, map_location='cuda:0'))
 
     # change the last conv2d layer
@@ -29,15 +29,15 @@ def get_pretrained_network(file, num_bands, num_output_classes, version=1.0):
     net.num_classes = num_output_classes
 
     tm = time.strftime("%Y-%m-%d_%H:%M:%S", time.gmtime())
-    file_name = 'SpectralNet-'+str(num_bands)+tm 
+    file_name = 'SpectrumNet-'+str(num_bands)+tm 
 
     return net, file_name
 
 # Return network and filename 
-def getNetwork(num_bands):
-    net = SpectralNet(num_bands=num_bands)
+def getNetwork(num_bands, version=1.0):
+    net = SpectrumNet(num_bands=num_bands, version=version)
     tm = time.strftime("%Y-%m-%d_%H:%M:%S", time.gmtime())
-    file_name = 'SpectralNet-'+str(num_bands)+tm 
+    file_name = 'SpectrumNet-'+str(num_bands)+tm 
     return net, file_name
 
 
@@ -54,7 +54,7 @@ def train_model(model, criterion, optimizer, scheduler, num_epochs=25):
         print("-" * 10)
 
         # Each epoch has a training and validation phase 
-        for phase in ['train']: #, 'val']:
+        for phase in ['train', 'val']:
             if phase == 'train':
                 if scheduler is not None:
                     scheduler.step()
@@ -138,7 +138,7 @@ def test_model(model):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='SpectralNet Training')
+    parser = argparse.ArgumentParser(description='SpectrumNet Training')
     parser.add_argument('--resume', '-r', action='store_true', help='resume from checkpoint')
     parser.add_argument('--num_bands', '-n', nargs='*', default=2, type=int, help='number of input spectral bands')
     args = parser.parse_args()
@@ -178,10 +178,10 @@ if __name__ == "__main__":
     data_dir = '/media/jsen/SanDisk/Repos/intel_spectrumnet/data/Tomato2'
 
 
-    image_datasets = {x: DatasetFolder(os.path.join(data_dir, x), ['.tiff'], num_bands=args.num_bands, transform=data_transforms[x]) for x in ['train']} #, 'val', 'test']}
-    data_loaders = {x: DataLoader(image_datasets[x], batch_size=16, shuffle=True, num_workers=8) for x in ['train']} #, 'val', 'test']}
+    image_datasets = {x: DatasetFolder(os.path.join(data_dir, x), ['.tiff'], num_bands=args.num_bands, transform=data_transforms[x]) for x in ['train', 'val', 'test']}
+    data_loaders = {x: DataLoader(image_datasets[x], batch_size=16, shuffle=True, num_workers=8) for x in ['train', 'val', 'test']}
 
-    dataset_sizes = {x: len(image_datasets[x]) for x in ['train']} #, 'val', 'test']}
+    dataset_sizes = {x: len(image_datasets[x]) for x in ['train','val', 'test']}
     class_names = image_datasets['train'].classes
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -189,8 +189,8 @@ if __name__ == "__main__":
     # get network and savepath 
     if(args.resume):
         print("Resuming from checkpoint...")
-        #fname = '/media/jsen/SanDisk/Repos/intel_spectrumnet/data/SpectralNet-102019-01-11_13:33:28.pt'
-        fname = '/media/jsen/SanDisk/Repos/intel_spectrumnet/data/SpectralNet_DWS.pt'
+        #fname = '/media/jsen/SanDisk/Repos/intel_spectrumnet/data/SpectrumNet-102019-01-11_13:33:28.pt'
+        fname = '/media/jsen/SanDisk/Repos/intel_spectrumnet/data/SpectrumNet_DWS.pt'
         net, filename = get_pretrained_network(file=fname,
                                                num_bands=len(args.num_bands),
                                                num_output_classes=2,
