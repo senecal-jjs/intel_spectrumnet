@@ -24,6 +24,14 @@ The main.py file provides an example of how to train a model on a dataset consis
 
 The dataset folder is expected to contain a "train", "val", and "test" folder each of which contain subfolders corresponding to each class in your dataset. 
 
+Example usage: python main.py -n 1 2 3 
+
+This would select bands 1, 2, and 3 from your input images to be used for training. The package rasterio is being used to do band selection and begins indexing at 1 rather than 0. 
+
+Example usage: python main.py -n 2 7 8 10 13
+
+This would select spectral bands 2, 7, 8, 10, and 13 to be used for training. 
+
 ## Utilities
 
 The utilities package contains functions for converting ".bil" hyperspectral images into a geotiff format, as well as functions for converting images which are reported in terms of digital number to physically meaningfull reflectance values. The function "calibrate" performs the conversion, and relies on a numpy array of reflectance values measured from a spectralon panel to peform a valid flat field correction from digital number to reflectance. To use this conversion you must use spectralon reflectance data taken from the environment in which you captured each of your images. 
