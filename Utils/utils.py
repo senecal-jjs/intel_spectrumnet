@@ -71,8 +71,11 @@ def get_spectralon_reflectance(wavelength):
     Calculates the reflectance of the Spectralon panel for any
     given wavelength between 300 and 1500 nm. Note that the Pika L imager
     is limited to wavelengths between 387 and 1023 nm.
-    :param wavelength: (float) wavelength in nanometers (3 sigfigs)
-    :return: (float) reflectance of the Spectralon at that wavelength
+    
+    Args:
+         wavelength: (float) wavelength in nanometers (3 sigfigs)
+    returns: 
+        (float) reflectance of the Spectralon at that wavelength
     """
 
     step = 50 # 50 is the spectralon wavelength step
@@ -89,8 +92,14 @@ def get_spectralon_reflectance(wavelength):
 def calibrate(panel, image):
     """
     Given the coordindates containing the calibration panel,
-    calculate the mean reflectance of the panel, and correct
-    the image.
+    calculate the mean reflectance of the panel, and apply a flat
+    field correction to convert from digital number to refletance
+
+    Args:
+        panel: a numpy array containing reflectance data from a spectralon panel. WARNING!! the calibration values in this file are for my specific spectral panel
+        image: a numpy array of a multi-spectral or hyper-spectral image in units of digital number
+    returns:
+        the image which has had a flat field correction applied to convert digital number to reflectance 
     """
 
     # Extract the mean panel image
@@ -110,6 +119,11 @@ def get_plottable_rgb(image):
     """
     Displays the image in red, blue, green format. imgtitle
     will appear above the plotted image.
+
+    Args:
+        A numpy array of a hyper-spectral image
+    Returns:
+        A numpy array in RGB format 
     """
 
     ### Insert the three wavelengths you want to make an 'rgb' image from the hyperspectral cube
@@ -135,20 +149,31 @@ def get_plottable_rgb(image):
 def convert_bil_to_array(raw_bil_file):
     """
     Read in the raw .bil file and create a cube of the image
+
+    Args:
+        A .bil image. A .bil.hdr image should also likely exist in the same directory as the source image
+    Returns:
+        The image as a numpy array
     """
 
     gdal.GetDriverByName('EHdr').Register()
     raw_image = gdal.Open(raw_bil_file)
 
     # Read in each spectral band, (there are 240 bands)
-    image = np.dstack([read_bil_file(raw_image, ii) for ii in range(1, 291)]).astype('float32')
+    image = np.dstack([_read_bil_file(raw_image, ii) for ii in range(1, 291)]).astype('float32')
 
     return image
 
 
-def read_bil_file(img, rasterband):
+def _read_bil_file(img, rasterband):
     """
     Read in .bil files as np array for a given spectral band
+
+    Args:
+        img, a .bil file
+        rasterband, the wavelength to extract
+    Returns:
+        the rasterband as a numpy array
     """
 
     band = img.GetRasterBand(rasterband)
