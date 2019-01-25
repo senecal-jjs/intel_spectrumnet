@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import torch.nn.init as init
 
-class Fire(nn.Module):
+class Spectrum(nn.Module):
     def __init__(self, inplanes, squeeze_planes, expand1x1_planes, expand3x3_planes):
         super(Fire, self).__init__()
         self.inplanes = inplanes 
@@ -54,16 +54,16 @@ class SpectrumNet(nn.Module):
                 nn.Conv2d(num_bands, 96, kernel_size=2, stride=2), # modified from original architecture
                 nn.ReLU(inplace=False),
                 # skipped the initial maxpool due to my smaller image size
-                Fire(96, 32, 64, 64),
-                Fire(128, 32, 64, 64),
-                Fire(128, 64, 128, 128),
+                Spectrum(96, 32, 64, 64),
+                Spectrum(128, 32, 64, 64),
+                Spectrum(128, 64, 128, 128),
                 nn.MaxPool2d(kernel_size=2, stride=2, ceil_mode=True), # changed kernel size
-                Fire(256, 64, 128, 128),
-                Fire(256, 96, 192, 192),
-                Fire(384, 96, 192, 192),
-                Fire(384, 128, 256, 256),
+                Spectrum(256, 64, 128, 128),
+                Spectrum(256, 96, 192, 192),
+                Spectrum(384, 96, 192, 192),
+                Spectrum(384, 128, 256, 256),
                 nn.MaxPool2d(kernel_size=2, stride=2, ceil_mode=True), # changed kernel size
-                Fire(512, 128, 256, 256),
+                Spectrum(512, 128, 256, 256),
             )
         elif version == 1.1:
             self.features = nn.Sequential(
