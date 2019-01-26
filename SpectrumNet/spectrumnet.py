@@ -5,7 +5,7 @@ import torch.nn.init as init
 
 class Spectrum(nn.Module):
     def __init__(self, inplanes, squeeze_planes, expand1x1_planes, expand3x3_planes):
-        super(Fire, self).__init__()
+        super(Spectrum, self).__init__()
         self.inplanes = inplanes 
         self.squeeze = nn.Conv2d(inplanes, squeeze_planes, kernel_size=1)
         self.squeeze_activation = nn.ReLU(inplace=True)
