@@ -6,6 +6,7 @@ import torch.nn as nn
 import torch 
 
 from tensorboardX import SummaryWriter
+from sklearn.metrics import f1_score
 
 import os 
 import sys 
@@ -13,6 +14,7 @@ import time
 import argparse
 import datetime
 import copy 
+import numpy as np
 
 from spectrumnet import SpectrumNet
 from GeoTiffDataset import DatasetFolder
@@ -37,8 +39,8 @@ def get_pretrained_network(file, num_bands, num_output_classes, version=1.0):
 
 
 # Return network and filename 
-def getNetwork(num_bands):
-    net = SpectrumNet(version=1.0, num_bands=num_bands)
+def getNetwork(num_bands, version=1.0):
+    net = SpectrumNet(version=version, num_bands=num_bands)
     tm = time.strftime("%Y-%m-%d_%H:%M:%S", time.gmtime())
     file_name = 'SpectralNet-'+str(num_bands)+tm 
     return net, file_name
@@ -55,20 +57,21 @@ def train_model(criterion, num_epochs=25, num_bands=3):
         # get network and savepath 
         if(args.resume):
             print("Resuming from checkpoint...")
-            #fname = '/media/jsen/SanDisk/Repos/intel_spectrumnet/data/SpectrumNet-102019-01-11_13:33:28.pt'
-            #fname = '/media/jsen/SanDisk/Repos/intel_spectrumnet/data/SpectrumNet_DWS.pt'
-            fname = 'pretrained_models/Spectrum_DWS2.pt'
+            fname = 'pretrained_models/Spectrum_DWS_10b.pt'
             model, f = get_pretrained_network(file=fname,
                                               num_bands=len(args.num_bands),
                                               num_output_classes=2,
                                               version=1.1)
         else:
-            model, f = getNetwork(len(args.num_bands))
+            model, f = getNetwork(len(args.num_bands), version=1.1)
         model.to(device)
 
         best_model_wts = copy.deepcopy(model.state_dict())
+
+        # track metrics for each fold
         best_acc = 0.0 
-        
+        best_f1 = 0.0
+
         # set up optimizer 
         optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9,  nesterov=True) #weight_decay=5e-4
 
@@ -87,12 +90,14 @@ def train_model(criterion, num_epochs=25, num_bands=3):
                     if scheduler is not None:
                         scheduler.step()
                     model.eval()  # Set model to evalution mode 
-
+                
+                # track model ouputs
                 running_loss = 0.0 
                 running_corrects = 0.0 
+                running_label = np.array([])
+                running_predict = np.array([])
 
                 # iterate over data 
-
                 for inputs, labels, _ in data_loaders[phase]:
                     #print(inputs.size())
                     inputs = inputs.to(device)
@@ -118,20 +123,26 @@ def train_model(criterion, num_epochs=25, num_bands=3):
                     # statistics
                     running_loss += loss.item() * inputs.size(0)
                     running_corrects += torch.sum(preds == labels)
+                    running_label = np.hstack((running_label, labels.cpu().numpy()))
+                    running_predict = np.hstack((running_predict, preds.cpu().numpy()))
 
                 epoch_loss = running_loss / dataset_sizes[phase]
                 epoch_acc = running_corrects.double() / dataset_sizes[phase]
+                epoch_f1 = f1_score(running_label, running_predict, average='micro')
                 
                 if phase == str(fold):
                     writer.add_scalar("data/acc", epoch_acc, epoch)
 
-                print('{} Loss: {:.4f} Acc: {:.4f}'.format(phase, epoch_loss, epoch_acc))
+                print('{} Loss: {:.4f} Acc: {:.4f} F1: {:.4f}'.format(phase, epoch_loss, epoch_acc, epoch_f1))
 
                 # deep copy the model 
                 if phase == str(fold) and epoch_acc > best_acc: 
-                    print("Test fold: {} acc: {}".format(fold, epoch_acc))
+                    print("Test fold: {} acc: {} f1: {}".format(fold, epoch_acc, epoch_f1))
                     best_acc = epoch_acc 
                     best_model_wts = copy.deepcopy(model.state_dict())
+
+                if phase == str(fold) and epoch_f1 > best_f1:
+                    best_f1 = epoch_f1
                 
             print() 
         
@@ -140,7 +151,7 @@ def train_model(criterion, num_epochs=25, num_bands=3):
         print("Best validation Acc: {:.4f}".format(best_acc))
 
         with open("crossval_acc_3band.txt", 'a') as f:
-            f.write("{},".format(best_acc))
+            f.write("Acc: {}, F1: {}\n".format(best_acc, best_f1))
 
         # load best model weights 
         model.load_state_dict(best_model_wts)
@@ -191,7 +202,7 @@ if __name__ == "__main__":
 
     data_transforms = transforms.Compose([transforms.ToTensor(), transforms.Normalize(cur_means, cur_stds)])
 
-    data_dir = '/media/jsen/SanDisk/Repos/intel_spectrumnet/data/Avocado_2Class_CrossVal'
+    data_dir = '/media/jsen/SanDisk/Repos/intel_spectrumnet/data/Tomato_2Class_CrossVal'
 
     # create datasets
     folds = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
